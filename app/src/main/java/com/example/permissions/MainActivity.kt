@@ -17,23 +17,39 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.google.android.gms.location.*
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     val LOCATION_REQUEST_CODE = 100
     lateinit var statusView:TextView
+    lateinit var googleMap: GoogleMap
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        statusView = findViewById(R.id.text_view)
+         if(checkPermission()){
+             setupLocationListner()
+         }else{
+            askPermission()
+         }
 
-        if(checkPermission()){
-            setupLocationListner()
-        }else{
-           askPermission()
-        }
+        statusView = findViewById(R.id.textView)
+        val mapFragment =  SupportMapFragment.newInstance()
+        supportFragmentManager
+            .beginTransaction()
+            .add(R.id.fragmentContainerView, mapFragment)
+            .commit()
+
+        mapFragment.getMapAsync(this)
 
     }
 
@@ -47,16 +63,6 @@ class MainActivity : AppCompatActivity() {
     fun setupLocationListner(){
         if(isLocationEnabled(this)) {
             val fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
-           /*
-           // TO get current location
-           val task = fusedLocationProviderClient.getCurrentLocation(CurrentLocationRequest
-                .Builder().build(),null)
-            task.addOnSuccessListener {
-                statusView.text =it.latitude.toString()
-            }
-            task.addOnFailureListener {
-
-            }*/
             val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                 .setWaitForAccurateLocation(false)
                 .setMinUpdateIntervalMillis(1000)
@@ -71,6 +77,19 @@ class MainActivity : AppCompatActivity() {
                             statusView.text = location.latitude.toString()
                             Log.e("LOC lat", location.latitude.toString())
                             Log.e("LOC long", location.longitude.toString())
+                            val loc = LatLng(location.latitude,location.longitude)
+                            val mapIcon = ContextCompat.getDrawable(this@MainActivity,R.drawable.baseline_android)
+                            val iconBitmap = mapIcon?.toBitmap(40,40,null)
+                            googleMap.addMarker(MarkerOptions().position(loc).title("Marker in " +
+                                    "Sydney").icon(iconBitmap?.let {
+                                BitmapDescriptorFactory.fromBitmap(
+                                    it
+                                )
+                            }))
+                            googleMap.moveCamera(CameraUpdateFactory.newLatLng(loc))
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLng(loc))
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 15F));
+
                         }
                         // Things don't end here
                         // You may also update the location on your web app
@@ -144,5 +163,12 @@ class MainActivity : AppCompatActivity() {
                 // The permission was denied, so you cannot access the protected data or functionality.
             }
         }
+    }
+
+    override fun onMapReady(map: GoogleMap) {
+        googleMap = map
+        /*val sydney = LatLng(-34.0, 151.0)
+        map.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
+        map.moveCamera(CameraUpdateFactory.newLatLng(sydney))*/
     }
 }
